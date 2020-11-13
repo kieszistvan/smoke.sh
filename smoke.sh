@@ -11,12 +11,20 @@ SMOKE_CURL_COOKIE_JAR="$SMOKE_TMP_DIR/smoke_curl_cookie_jar"
 SMOKE_CSRF_TOKEN=""
 SMOKE_CSRF_FORM_DATA="$SMOKE_TMP_DIR/smoke_csrf_form_data"
 
+SMOKE_REPLACE=""
+SMOKE_REPLACE_FORM_DATA="$SMOKE_TMP_DIR/smoke_replace_form_data"
+SMOKE_REPLACE_FORM_DATA_TEMP="$SMOKE_TMP_DIR/smoke_replace_form_data_temp"
+
 SMOKE_TESTS_FAILED=0
 SMOKE_TESTS_RUN=0
 SMOKE_URL_PREFIX=""
 SMOKE_HEADERS=()
 
 ## "Public API"
+
+smoke_replace() {
+  SMOKE_REPLACE="$1"
+}
 
 smoke_csrf() {
     SMOKE_CSRF_TOKEN="$1"
@@ -162,6 +170,22 @@ _smoke_fail() {
     _smoke_print_failure "$REASON"
 }
 
+_smoke_prepare_formdata_replace() {
+    FORMDATA="$1"
+
+    if [[ "" != $SMOKE_REPLACE ]]; then
+        cat $FORMDATA > $SMOKE_REPLACE_FORM_DATA
+        for i in $(echo $SMOKE_REPLACE | tr ";" "\n")
+        do
+          awk -v i=$i 'NR==1,/__SMOKE_REPLACE__/{sub(/__SMOKE_REPLACE__/, i)} 1' $SMOKE_REPLACE_FORM_DATA > $SMOKE_REPLACE_FORM_DATA_TEMP
+          mv $SMOKE_REPLACE_FORM_DATA_TEMP $SMOKE_REPLACE_FORM_DATA
+        done
+        echo $SMOKE_REPLACE_FORM_DATA
+    else
+        echo $FORMDATA
+    fi
+}
+
 _smoke_prepare_formdata() {
     FORMDATA="$1"
 
@@ -209,7 +233,7 @@ _curl_get() {
 _curl_post() {
     URL="$1"
     FORMDATA="$2"
-    FORMDATA_FILE="@"$(_smoke_prepare_formdata $FORMDATA)
+    FORMDATA_FILE="@"$(_smoke_prepare_formdata_replace $FORMDATA)
 
     SMOKE_URL="$SMOKE_URL_PREFIX$URL"
     _smoke_print_url "$SMOKE_URL"
